@@ -5,18 +5,45 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
-	"github.com/cloudfoundry-incubator/cf-test-helpers/services"
+	"github.com/cloudfoundry-incubator/cf-test-helpers/workflowhelpers"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
 type testConfig struct {
-	services.Config
+	AdminUser         string   `json:"admin_user"`
+	AdminPassword     string   `json:"admin_password"`
+	Api               string   `json:"api"`
+	AppsDomain        string   `json:"apps_domain"`
+	OrgName           string   `json:"org_name"`
+	SpaceName         string   `json:"space_name"`
+	PlanNames         []string `json:"plan_names"`
+	ServiceName       string   `json:"service_name"`
+	SkipSSLValidation bool     `json:"skip_ssl_validation"`
+	TimeoutScale      float64  `json:"timeout_scale"`
+}
 
-	ServiceName string   `json:"service_name"`
-	PlanNames   []string `json:"plan_names"`
+func (c testConfig) ScaledTimeout(timeout time.Duration) time.Duration {
+	return time.Duration(float64(timeout) * c.TimeoutScale)
+}
+
+func (c testConfig) Username() string {
+	return c.AdminUser
+}
+
+func (c testConfig) Password() string {
+	return c.AdminPassword
+}
+
+func (c testConfig) OrganizationName() string {
+	return c.OrgName
+}
+
+func (c testConfig) SpaceName() string {
+	return c.SpaceName
 }
 
 func loadConfig(path string) (cfg testConfig) {
@@ -35,7 +62,7 @@ func loadConfig(path string) (cfg testConfig) {
 
 var (
 	config = loadConfig(os.Getenv("CONFIG_PATH"))
-	ctx    services.Context
+	ctx    workflowhelpers.UserContext
 )
 
 func fatal(err error) {
@@ -44,11 +71,12 @@ func fatal(err error) {
 }
 
 func TestService(t *testing.T) {
-	if err := services.ValidateConfig(&config.Config); err != nil {
-		fatal(err)
-	}
+	// if err := services.ValidateConfig(&config.Config); err != nil {
+	// 	fatal(err)
+	// }
 
-	ctx = services.NewContext(config.Config, "rabbitmq-smoke-tests")
+	//ctx = services.NewContext(config.Config, "rabbitmq-smoke-tests")
+	ctx = workflowhelpers.NewUserContext(config.Api, config, config, config.SkipSSLValidation, 30*time.Second)
 
 	RegisterFailHandler(Fail)
 
@@ -56,9 +84,11 @@ func TestService(t *testing.T) {
 }
 
 var _ = BeforeEach(func() {
-	ctx.Setup()
+	//ctx.Setup()
+	ctx.Login()
 })
 
 var _ = AfterEach(func() {
-	ctx.Teardown()
+	//ctx.Teardown()
+	ctx.Logout()
 })
